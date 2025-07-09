@@ -1,14 +1,18 @@
 desc "Fill the database tables with some sample data"
 task({ :sample_data => :environment }) do
   puts "Sample data task running"
-  
-  ActiveRecord::Base.connection.tables.each do |t|
-    ActiveRecord::Base.connection.reset_pk_sequence!(t)
-  end
 
   Board.destroy_all
   Post.destroy_all
   
+  ActiveRecord::Base.connection.tables.each do |t|
+    begin
+      ActiveRecord::Base.connection.execute("ALTER SEQUENCE #{t}_id_seq RESTART WITH 1")
+    rescue ActiveRecord::StatementInvalid
+      # Skip tables that don't have an id sequence
+    end
+  end
+    
   5.times do
     board = Board.new
     board.name = Faker::Address.community
@@ -18,7 +22,7 @@ task({ :sample_data => :environment }) do
       post = Post.new
       post.board_id = board.id
       post.title = rand < 0.5 ? Faker::Commerce.product_name : Faker::Job.title
-      post.body = Faker::Lorem.paragraphs(number: rand(1..5), supplemental: true).join("\n\n")
+      post.body = Faker::Quotes::Shakespeare.hamlet_quote 
       post.created_at = Faker::Date.backward(days: 120)
       post.expires_on = post.created_at + rand(3..90).days
       post.save
